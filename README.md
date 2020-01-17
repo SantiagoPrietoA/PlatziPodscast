@@ -11,3 +11,7 @@ Require Node.JS 10
 * `npm intall`
 * `npm run dev`
 * `npm run build && npm start`
+
+## URL
+
+* `https://podcasts-rd9ocetvl.now.sh/`
