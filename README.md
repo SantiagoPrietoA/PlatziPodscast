@@ -2,7 +2,7 @@
 
 Practic projec in Next.js Platzi course
 
-![screenshot](./docs.screenshot.png)
+![screenshot](docs.screenshot.png)
 
 ## How to use?
 
