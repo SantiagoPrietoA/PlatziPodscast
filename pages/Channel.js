@@ -1,11 +1,34 @@
+import {useState} from 'react';
+
 import 'isomorphic-fetch'
 import Layout from '../components/Layout'
 import ChannelGrid from '../components/ChannelGrid'
 import PodcastList from '../components/PodcastList'
+import PodcastPlayer from '../components/PodcastPlayer'
+import Error from './_error'
 
-const Channel = ({ channel, audioClips, series }) => {
+const Channel = ({ channel, audioClips, series, statusCode }) => {
+
+    const [openPodcast, setopenPodcast] = useState(null);
+
+    const openPodcastFunction = (e,podcast) => {
+      e.preventDefault()
+      setopenPodcast(podcast)
+    }
+
+    const closePodcast = (event) => {
+      event.preventDefault()
+      setopenPodcast(null)
+    }
+
+    if( statusCode !== 200 ) {
+      return <Error statusCode={ statusCode } />
+    }
     return (
         <Layout title={channel.title}>
+          { openPodcast && 
+            <PodcastPlayer clip={ openPodcast } onClose={ (e) => closePodcast(e) } />
+          }
           <div className="banner" style={{ backgroundImage: `url(${channel.urls.banner_image.original})` }} />
           
           <h1>{ channel.title }</h1>
@@ -18,7 +41,7 @@ const Channel = ({ channel, audioClips, series }) => {
           }
 
           <h2>Ultimos Podcasts</h2>
-          <PodcastList podcasts={ audioClips } />
+          <PodcastList podcasts={ audioClips } onClickPodcast={(e,podcast) => openPodcastFunction(e, podcast)}/>
 
           <style jsx>{`
             .banner {
@@ -43,24 +66,35 @@ const Channel = ({ channel, audioClips, series }) => {
     )
 }
 
-Channel.getInitialProps = async ({ query }) => {
+Channel.getInitialProps = async ({ query, res }) => {
     const idChannel = query.id;
 
-    const [reqChannel, reqAudio, reqSeries] = await Promise.all([
-      fetch(`https://api.audioboom.com/channels/${query.id}`),
-      fetch(`https://api.audioboom.com/channels/${query.id}/audio_clips`),
-      fetch(`https://api.audioboom.com/channels/${query.id}/child_channels`)
-    ]);
+    try {
+      let [reqChannel, reqSeries, reqAudios] = await Promise.all([
+        fetch(`https://api.audioboom.com/channels/${idChannel}`),
+        fetch(`https://api.audioboom.com/channels/${idChannel}/child_channels`),
+        fetch(`https://api.audioboom.com/channels/${idChannel}/audio_clips`)
+      ])
 
-    const dataChannel = await reqChannel.json();
-    const channel = dataChannel.body.channel;
+      if( reqChannel.status >= 400 ) {
+        res.statusCode = reqChannel.status
+        return { channel: null, audioClips: null, series: null, statusCode: reqChannel.status }
+      }
 
-    const dataAudio = await reqAudio.json();
-    const audioClips = dataAudio.body.audio_clips;
+      let dataChannel = await reqChannel.json()
+      let channel = dataChannel.body.channel
 
-    const dataSeries = await reqSeries.json();
-    const series = dataSeries.body.channels;
-    return { channel, audioClips, series };
+      let dataAudios = await reqAudios.json()
+      let audioClips = dataAudios.body.audio_clips
+
+      let dataSeries = await reqSeries.json()
+      let series = dataSeries.body.channels
+
+      return { channel, audioClips, series, statusCode: 200 }
+    } catch(e) {
+      res.statusCode = 503
+      return { channel: null, audioClips: null, series: null, statusCode: 503 }
+    }
 }
 
 export default Channel;
